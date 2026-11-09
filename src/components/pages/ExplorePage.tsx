@@ -52,9 +52,43 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onNavigate }) => {
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
   }, [blogs]);
 
-  // Filtered stories
+  // Ranking formula calculation for Explore
+  // Score = (likesCount * 2) + (commentsCount * 3) + (bookmarksCount * 4) + (log(viewsCount + 1) * 0.5) + freshnessBoost
+  const computeBlogScore = (b: Blog, now: number): number => {
+    const likes = b.likesCount || 0;
+    const comments = b.commentsCount || 0;
+    const bookmarks = b.bookmarksCount || 0;
+    const views = b.viewsCount || 0;
+
+    const baseScore =
+      likes * 2 +
+      comments * 3 +
+      bookmarks * 4 +
+      Math.log(views + 1) * 0.5;
+
+    // Freshness boost: Give new publications high visibility even with 0 initial engagement
+    const createdTime = new Date(b.createdAt).getTime();
+    const hoursSinceCreation = Math.max(0, (now - createdTime) / (1000 * 60 * 60));
+
+    let freshnessBoost = 0;
+    if (hoursSinceCreation < 12) {
+      // First 12 hours: Strong boost (+15 down to +10)
+      freshnessBoost = 15 - (hoursSinceCreation / 12) * 5;
+    } else if (hoursSinceCreation < 48) {
+      // 12 - 48 hours: Moderate boost (+10 down to +4)
+      freshnessBoost = 10 - ((hoursSinceCreation - 12) / 36) * 6;
+    } else if (hoursSinceCreation < 168) {
+      // 2 - 7 days: Gentle recency incentive (+4 down to 0)
+      freshnessBoost = 4 - ((hoursSinceCreation - 48) / 120) * 4;
+    }
+
+    return baseScore + Math.max(0, freshnessBoost);
+  };
+
+  // Filtered and ranked stories
   const filteredBlogs = React.useMemo(() => {
-    return blogs.filter((b) => {
+    // 1. Filter matching active tag or search query
+    const filtered = blogs.filter((b) => {
       if (activeTag) {
         return b.tags?.some((t) => t.replace(/^#/, '').toLowerCase() === activeTag.toLowerCase());
       }
@@ -69,18 +103,89 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onNavigate }) => {
       }
       return true;
     });
+
+    // 2. If user is actively searching, preserve direct relevance (newest first for matches)
+    if (search.trim()) {
+      return [...filtered].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    }
+
+    // 3. Otherwise rank by Engagement Score + Freshness Boost with tie-breaker and author diversity
+    const now = Date.now();
+    const scored = filtered.map((blog) => ({
+      blog,
+      score: computeBlogScore(blog, now),
+      createdAtMs: new Date(blog.createdAt).getTime(),
+    }));
+
+    // Sort descending by score, tie-break with newest publication date
+    scored.sort((a, b) => {
+      if (Math.abs(b.score - a.score) > 0.001) {
+        return b.score - a.score;
+      }
+      return b.createdAtMs - a.createdAtMs;
+    });
+
+    // 4. Author diversity: Prevent 3+ consecutive articles from the exact same author
+    // Interleave diverse authors gracefully without sacrificing top ranking
+    const result: Blog[] = [];
+    const pool = [...scored];
+
+    while (pool.length > 0) {
+      const lastAuthorId = result.length > 0 ? result[result.length - 1].authorId : null;
+      const secondLastAuthorId = result.length > 1 ? result[result.length - 2].authorId : null;
+
+      // Check if top item causes 3 consecutive posts by same author
+      if (
+        lastAuthorId &&
+        secondLastAuthorId &&
+        lastAuthorId === secondLastAuthorId &&
+        pool[0].blog.authorId === lastAuthorId
+      ) {
+        // Find next highest-ranked blog by a different author within reasonable range
+        const nextDiffIndex = pool.findIndex((item) => item.blog.authorId !== lastAuthorId);
+        if (nextDiffIndex !== -1 && nextDiffIndex <= 4) {
+          result.push(pool.splice(nextDiffIndex, 1)[0].blog);
+          continue;
+        }
+      }
+
+      // Default: take highest ranked
+      result.push(pool.shift()!.blog);
+    }
+
+    return result;
   }, [blogs, search, activeTag]);
 
-  // Filtered authors
+  // Reset to All Stories tab whenever Explore is navigated to
+  useEffect(() => {
+    setActiveTab('stories');
+    setActiveTag(null);
+  }, []);
+
+  // Filtered genuine published authors (strictly users who have at least one genuinely published blog)
+  const publishedAuthorIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    blogs.forEach((b) => {
+      if (b.authorId) ids.add(b.authorId);
+    });
+    return ids;
+  }, [blogs]);
+
   const filteredAuthors = React.useMemo(() => {
     return authors.filter((a) => {
+      // Must have at least 1 genuinely published blog
+      const hasPublishedBlog = (a.blogsCount && a.blogsCount > 0) || publishedAuthorIds.has(a.id);
+      if (!hasPublishedBlog) return false;
+
       if (search.trim()) {
         const q = search.toLowerCase();
         return a.fullName.toLowerCase().includes(q) || a.username.toLowerCase().includes(q);
       }
       return true;
     });
-  }, [authors, search]);
+  }, [authors, publishedAuthorIds, search]);
 
   return (
     <div className="min-h-screen bg-ambient-mesh px-4 sm:px-8 py-8 max-w-7xl mx-auto pb-24">
@@ -181,13 +286,18 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onNavigate }) => {
       {/* Tab: Authors */}
       {activeTab === 'authors' && (
         <div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAuthors.map((author) => (
-              <div
-                key={author.id}
-                onClick={() => onNavigate({ type: 'profile', userId: author.id })}
-                className="glass-panel p-6 rounded-3xl border border-white/10 hover:border-cyan-400/40 transition-all cursor-pointer group flex flex-col justify-between"
-              >
+          {filteredAuthors.length === 0 ? (
+            <div className="text-center py-16 text-slate-400 text-sm glass-panel rounded-2xl max-w-md mx-auto p-8">
+              No published authors found matching your criteria.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredAuthors.map((author) => (
+                <div
+                  key={author.id}
+                  onClick={() => onNavigate({ type: 'profile', userId: author.id })}
+                  className="glass-panel p-6 rounded-3xl border border-white/10 hover:border-cyan-400/40 transition-all cursor-pointer group flex flex-col justify-between"
+                >
                 <div>
                   <div className="flex items-center gap-4 mb-4">
                     <img
@@ -222,7 +332,8 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onNavigate }) => {
               </div>
             ))}
           </div>
-        </div>
+        )}
+      </div>
       )}
 
       {/* Tab: Popular Topics (Tags Cloud) */}
