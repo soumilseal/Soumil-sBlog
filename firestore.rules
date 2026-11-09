@@ -1,0 +1,125 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'soumilseal457@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    // USERS
+    match /users/{userId} {
+      allow get: if true;
+      allow list: if isSignedIn();
+      allow create: if isOwner(userId) &&
+        incoming().id == userId &&
+        incoming().fullName is string && incoming().fullName.size() <= 80 &&
+        incoming().username is string && incoming().username.size() <= 40 &&
+        incoming().email is string && incoming().email.size() <= 120 &&
+        incoming().role in ['member', 'author', 'admin'];
+      allow update: if (
+        isOwner(userId) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'bio', 'photoURL', 'coverURL', 'username']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['followersCount', 'followingCount', 'blogsCount']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'bio', 'photoURL', 'coverURL', 'username', 'followersCount', 'followingCount', 'blogsCount'])
+        )
+      ) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // BLOGS
+    match /blogs/{blogId} {
+      allow get: if resource.data.status == 'published' || (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
+      allow list: if resource.data.status == 'published' || (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
+      allow create: if isSignedIn() &&
+        incoming().authorId == request.auth.uid &&
+        incoming().title is string && incoming().title.size() > 0 && incoming().title.size() <= 200 &&
+        incoming().content is string && incoming().content.size() > 0 && incoming().content.size() <= 100000 &&
+        incoming().category is string && incoming().category.size() <= 50;
+      allow update: if (
+        (isSignedIn() && resource.data.authorId == request.auth.uid && incoming().authorId == request.auth.uid) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['likesCount', 'commentsCount', 'bookmarksCount', 'viewsCount'])) ||
+        isAdmin()
+      );
+      allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
+    }
+
+    // COMMENTS
+    match /comments/{commentId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() &&
+        incoming().authorId == request.auth.uid &&
+        incoming().content is string && incoming().content.size() > 0 && incoming().content.size() <= 2000 &&
+        incoming().blogId is string;
+      allow update: if (
+        (isSignedIn() && resource.data.authorId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['content', 'updatedAt'])) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['likesCount'])) ||
+        isAdmin()
+      );
+      allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
+    }
+
+    // LIKES
+    match /likes/{likeId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // BOOKMARKS
+    match /bookmarks/{bookmarkId} {
+      allow get, list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // FOLLOWERS
+    match /followers/{followerId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && incoming().followerId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.followerId == request.auth.uid;
+    }
+
+    // NOTIFICATIONS
+    match /notifications/{notificationId} {
+      allow get, list: if isSignedIn() && resource.data.recipientId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().senderId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.recipientId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isSignedIn() && resource.data.recipientId == request.auth.uid;
+    }
+
+    // CATEGORIES
+    match /categories/{categoryId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // REPORTS
+    match /reports/{reportId} {
+      allow get, list: if isAdmin() || (isSignedIn() && resource.data.reporterId == request.auth.uid);
+      allow create: if isSignedIn() && incoming().reporterId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // ADMINS
+    match /admins/{adminId} {
+      allow get, list: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

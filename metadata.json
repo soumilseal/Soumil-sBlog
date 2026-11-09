@@ -1,0 +1,6 @@
+{
+  "name": "Soumil's Blog",
+  "description": "A premium social blogging community where every voice has a story and every story deserves to be heard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

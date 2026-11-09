@@ -1,0 +1,210 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Registered user profile information and social stats",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "fullName": { "type": "string", "maxLength": 80 },
+        "username": { "type": "string", "maxLength": 40, "pattern": "^[a-zA-Z0-9_]{3,30}$" },
+        "email": { "type": "string", "maxLength": 120 },
+        "bio": { "type": "string", "maxLength": 500 },
+        "photoURL": { "type": "string", "maxLength": 2000 },
+        "coverURL": { "type": "string", "maxLength": 2000 },
+        "role": { "type": "string", "enum": ["admin", "author", "member"] },
+        "isSuspended": { "type": "boolean" },
+        "followersCount": { "type": "number" },
+        "followingCount": { "type": "number" },
+        "blogsCount": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "fullName", "username", "email", "role"]
+    },
+    "Blog": {
+      "title": "Blog Article",
+      "description": "Editorial long-form blog post with engagement metrics",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "excerpt": { "type": "string", "maxLength": 500 },
+        "content": { "type": "string", "maxLength": 100000 },
+        "coverImage": { "type": "string", "maxLength": 2000 },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 80 },
+        "authorUsername": { "type": "string", "maxLength": 40 },
+        "authorPhotoURL": { "type": "string", "maxLength": 2000 },
+        "category": { "type": "string", "maxLength": 50 },
+        "tags": { "type": "array" },
+        "readTimeMinutes": { "type": "number" },
+        "status": { "type": "string", "enum": ["published", "draft", "removed"] },
+        "likesCount": { "type": "number" },
+        "commentsCount": { "type": "number" },
+        "bookmarksCount": { "type": "number" },
+        "viewsCount": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "title", "content", "authorId", "authorName", "status", "category"]
+    },
+    "Comment": {
+      "title": "Blog Comment",
+      "description": "User comment or nested reply on a published blog",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "blogId": { "type": "string", "maxLength": 128 },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 80 },
+        "authorUsername": { "type": "string", "maxLength": 40 },
+        "authorPhotoURL": { "type": "string", "maxLength": 2000 },
+        "content": { "type": "string", "maxLength": 2000 },
+        "parentCommentId": { "type": "string", "maxLength": 128 },
+        "likesCount": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "blogId", "authorId", "authorName", "content", "createdAt"]
+    },
+    "Like": {
+      "title": "Blog Like",
+      "description": "Like record by a user on a blog",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 256 },
+        "blogId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "blogId", "userId"]
+    },
+    "Bookmark": {
+      "title": "Blog Bookmark",
+      "description": "Personal bookmark record of a blog by a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 256 },
+        "blogId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "blogId", "userId"]
+    },
+    "Follower": {
+      "title": "Author Follow",
+      "description": "Follow relationship between two users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 256 },
+        "followerId": { "type": "string", "maxLength": 128 },
+        "followedId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "followerId", "followedId"]
+    },
+    "Notification": {
+      "title": "User Notification",
+      "description": "Social notification for likes, comments, replies, and follows",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "recipientId": { "type": "string", "maxLength": 128 },
+        "senderId": { "type": "string", "maxLength": 128 },
+        "senderName": { "type": "string", "maxLength": 80 },
+        "senderPhotoURL": { "type": "string", "maxLength": 2000 },
+        "type": { "type": "string", "enum": ["like", "comment", "reply", "follow"] },
+        "blogId": { "type": "string", "maxLength": 128 },
+        "blogTitle": { "type": "string", "maxLength": 200 },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "recipientId", "senderId", "type", "read"]
+    },
+    "Category": {
+      "title": "Blog Category",
+      "description": "Pre-defined or admin-managed content category",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "name": { "type": "string", "maxLength": 64 },
+        "slug": { "type": "string", "maxLength": 64 },
+        "description": { "type": "string", "maxLength": 300 },
+        "icon": { "type": "string", "maxLength": 64 },
+        "count": { "type": "number" }
+      },
+      "required": ["id", "name", "slug"]
+    },
+    "Report": {
+      "title": "Content Report",
+      "description": "Flagged inappropriate content for administrators",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "reporterId": { "type": "string", "maxLength": 128 },
+        "reporterName": { "type": "string", "maxLength": 80 },
+        "targetType": { "type": "string", "enum": ["blog", "comment", "user"] },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "targetTitle": { "type": "string", "maxLength": 200 },
+        "reason": { "type": "string", "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["pending", "resolved", "dismissed"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "reporterId", "targetType", "targetId", "reason", "status"]
+    },
+    "Admin": {
+      "title": "Admin Record",
+      "description": "Designated administrator identity record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 120 },
+        "role": { "type": "string", "enum": ["admin", "superadmin"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "email", "role"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles and social statistics"
+    },
+    "/blogs/{blogId}": {
+      "schema": { "$ref": "#/entities/Blog" },
+      "description": "Published and draft blogs"
+    },
+    "/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/Comment" },
+      "description": "Comments and replies on blogs"
+    },
+    "/likes/{likeId}": {
+      "schema": { "$ref": "#/entities/Like" },
+      "description": "User blog likes"
+    },
+    "/bookmarks/{bookmarkId}": {
+      "schema": { "$ref": "#/entities/Bookmark" },
+      "description": "User saved bookmarks"
+    },
+    "/followers/{followerId}": {
+      "schema": { "$ref": "#/entities/Follower" },
+      "description": "Author follower relationships"
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "Social interaction alerts for users"
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Curated editorial categories"
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/Report" },
+      "description": "Moderation reports submitted by users"
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/Admin" },
+      "description": "System admin documents"
+    }
+  }
+}
