@@ -14,13 +14,28 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNav
   const [query, setQuery] = useState('');
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [removedUserIds, setRemovedUserIds] = useState<Set<string>>(new Set());
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setRemovedUserIds(new Set());
+      setToastMessage(null);
+      return;
+    }
     const unsub = subscribeToPublishedBlogs((list) => setBlogs(list));
     getAllUsers().then((u) => setUsers(u)).catch(() => {});
     return () => unsub();
   }, [isOpen]);
+
+  const handleRemoveUserFromResults = (e: React.MouseEvent, userId: string, fullName: string) => {
+    e.stopPropagation();
+    setRemovedUserIds((prev) => new Set(prev).add(userId));
+    setToastMessage(`Removed "${fullName}" from search results`);
+    setTimeout(() => {
+      setToastMessage((current) => (current?.includes(fullName) ? null : current));
+    }, 2400);
+  };
 
   if (!isOpen) return null;
 
@@ -39,18 +54,29 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNav
     : [];
 
   const matchedUsers = q
-    ? users.filter((u) => {
-        return (
-          u.fullName.toLowerCase().includes(q) ||
-          u.username.toLowerCase().includes(q) ||
-          u.bio?.toLowerCase().includes(q)
-        );
-      }).slice(0, 4)
+    ? users
+        .filter((u) => !removedUserIds.has(u.id))
+        .filter((u) => {
+          return (
+            u.fullName.toLowerCase().includes(q) ||
+            u.username.toLowerCase().includes(q) ||
+            u.bio?.toLowerCase().includes(q)
+          );
+        })
+        .slice(0, 4)
     : [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-150">
-      <div className="glass-panel w-full max-w-2xl rounded-3xl border border-white/15 p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+      <div className="glass-panel w-full max-w-2xl rounded-3xl border border-white/15 p-6 shadow-2xl animate-in zoom-in-95 duration-200 relative">
+        {/* Toast confirmation */}
+        {toastMessage && (
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 rounded-full bg-slate-900/95 border border-cyan-400/30 text-cyan-300 text-xs font-mono-code shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+
         {/* Search Input Bar */}
         <div className="relative flex items-center mb-6">
           <Search className="w-5 h-5 absolute left-4 text-cyan-400" />
@@ -98,7 +124,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNav
                           onClose();
                           onNavigate({ type: 'profile', userId: u.id });
                         }}
-                        className="p-3 rounded-xl bg-slate-900/60 hover:bg-slate-800/60 border border-white/5 cursor-pointer flex items-center gap-3 transition-colors group"
+                        className="p-3 rounded-xl bg-slate-900/60 hover:bg-slate-800/60 border border-white/5 cursor-pointer flex items-center gap-3 transition-all duration-200 group relative"
                       >
                         <img
                           src={
@@ -106,7 +132,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNav
                             `https://api.dicebear.com/7.x/identicon/svg?seed=${u.id}`
                           }
                           alt={u.fullName}
-                          className="w-9 h-9 rounded-full object-cover border border-white/10 group-hover:border-cyan-400 transition-colors"
+                          className="w-9 h-9 rounded-full object-cover border border-white/10 group-hover:border-cyan-400 transition-colors shrink-0"
                         />
                         <div className="min-w-0 flex-1">
                           <h4 className="text-xs font-bold text-white group-hover:text-cyan-300 truncate">
@@ -116,7 +142,21 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNav
                             @{u.username}
                           </span>
                         </div>
-                        <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-300" />
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          {/* Remove from search results button */}
+                          <button
+                            type="button"
+                            onClick={(e) => handleRemoveUserFromResults(e, u.id, u.fullName)}
+                            className="p-1.5 rounded-lg bg-black/40 text-slate-400 hover:text-rose-400 hover:bg-rose-500/15 border border-white/5 hover:border-rose-500/30 transition-all"
+                            title="Remove from search results"
+                            aria-label={`Remove ${u.fullName} from search results`}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+
+                          <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-300 ml-1 hidden sm:block" />
+                        </div>
                       </div>
                     ))}
                   </div>
