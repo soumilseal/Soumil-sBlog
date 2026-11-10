@@ -10,13 +10,29 @@ import {
   browserSessionPersistence,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../lib/firebase';
 import { UserProfile } from '../types';
 import { BRANDING } from '../config/branding';
 import { uploadImageToStorage } from './storageService';
 
 const USERS_COLLECTION = 'users';
+
+export async function checkIsUsernameTaken(username: string): Promise<boolean> {
+  const clean = username.toLowerCase().replace(/[^a-z0-9_]/g, '');
+  if (!clean) return false;
+  try {
+    const q = query(
+      collection(db, USERS_COLLECTION),
+      where('username', '==', clean),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+    return !snap.empty;
+  } catch {
+    return false;
+  }
+}
 
 export async function registerUser(
   email: string,
@@ -25,6 +41,12 @@ export async function registerUser(
   username: string,
   photoFileOrUrl?: File | string | null
 ): Promise<UserProfile> {
+  const cleanUsername = username.toLowerCase().replace(/[^a-z0-9_]/g, '');
+  const isTaken = await checkIsUsernameTaken(cleanUsername);
+  if (isTaken) {
+    throw new Error(`The username "@${cleanUsername}" is already taken. Please choose another.`);
+  }
+
   const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
   const user = userCredential.user;
 
