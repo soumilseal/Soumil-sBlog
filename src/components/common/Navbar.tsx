@@ -160,7 +160,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               {/* Notifications Dropdown */}
-              <div className="relative" ref={notifRef}>
+              <div className="relative z-50" ref={notifRef}>
                 <button
                   onClick={() => setShowNotifMenu(!showNotifMenu)}
                   className="relative p-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition-all"
@@ -175,7 +175,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
 
                 {showNotifMenu && (
-                  <div className="absolute right-0 mt-3 w-80 sm:w-96 rounded-2xl glass-panel p-4 shadow-2xl border border-white/10 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
+                  <div className="absolute right-0 mt-3 w-80 sm:w-96 rounded-2xl bg-[#080d1a]/98 p-4 shadow-2xl shadow-black/80 border border-white/12 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 z-50 max-w-[calc(100vw-2rem)]">
                     <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-2">
                       <div className="flex items-center gap-2">
                         <Bell className="w-4 h-4 text-cyan-400" />
@@ -252,10 +252,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
 
               {/* User Avatar & Dropdown */}
-              <div className="relative" ref={userMenuRef}>
+              <div className="relative z-50" ref={userMenuRef}>
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-2 p-1 pl-1.5 rounded-xl hover:bg-white/5 border border-white/10 transition-all"
+                  className="flex items-center gap-2 p-1 pl-1.5 rounded-xl hover:bg-white/5 border border-white/10 transition-all focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
+                  aria-expanded={showUserMenu}
+                  aria-haspopup="true"
                 >
                   <img
                     src={
@@ -272,70 +274,72 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
 
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-3 w-56 rounded-2xl glass-panel p-2 shadow-2xl border border-white/10 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
-                    <div className="px-3 py-2 border-b border-white/10 mb-1">
+                  <div className="absolute right-0 mt-3 w-60 rounded-2xl bg-[#080d1a]/98 p-2 shadow-2xl shadow-black/90 border border-white/12 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 z-50 max-w-[calc(100vw-2rem)]">
+                    <div className="px-3.5 py-2.5 border-b border-white/10 mb-1.5">
                       <p className="text-xs font-bold text-white truncate">{profile?.fullName}</p>
                       <p className="text-[10px] text-cyan-400 font-mono-code truncate">
                         @{profile?.username}
                       </p>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        onNavigate({ type: 'profile', userId: user.uid, tab: 'blogs' });
-                        setShowUserMenu(false);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-slate-200 hover:text-white hover:bg-white/5 transition-all"
-                    >
-                      <UserIcon className="w-4 h-4 text-cyan-400" />
-                      <span>My Profile</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        onNavigate({ type: 'profile', userId: user.uid, tab: 'bookmarks' });
-                        setShowUserMenu(false);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-slate-200 hover:text-white hover:bg-white/5 transition-all"
-                    >
-                      <Sparkles className="w-4 h-4 text-amber-300" />
-                      <span>My Bookmarks</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        onNavigate({ type: 'write' });
-                        setShowUserMenu(false);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-slate-200 hover:text-white hover:bg-white/5 transition-all"
-                    >
-                      <PenSquare className="w-4 h-4 text-emerald-400" />
-                      <span>Write Story</span>
-                    </button>
-
-                    {isAdmin && (
+                    <div className="flex flex-col gap-0.5">
                       <button
                         onClick={() => {
-                          onNavigate({ type: 'admin' });
+                          onNavigate({ type: 'profile', userId: user.uid, tab: 'blogs' });
                           setShowUserMenu(false);
                         }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-amber-300 hover:bg-amber-500/10 transition-all font-semibold"
+                        className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-200 hover:text-white hover:bg-white/8 transition-all text-left"
                       >
-                        <ShieldAlert className="w-4 h-4 text-amber-300" />
-                        <span>Admin Console</span>
+                        <UserIcon className="w-4 h-4 text-cyan-400 shrink-0" />
+                        <span>My Profile</span>
                       </button>
-                    )}
 
-                    <div className="border-t border-white/10 my-1" />
+                      <button
+                        onClick={() => {
+                          onNavigate({ type: 'profile', userId: user.uid, tab: 'bookmarks' });
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-200 hover:text-white hover:bg-white/8 transition-all text-left"
+                      >
+                        <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
+                        <span>My Bookmarks</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          onNavigate({ type: 'write' });
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-200 hover:text-white hover:bg-white/8 transition-all text-left"
+                      >
+                        <PenSquare className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>Write Story</span>
+                      </button>
+
+                      {isAdmin && (
+                        <button
+                          onClick={() => {
+                            onNavigate({ type: 'admin' });
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-amber-300 hover:bg-amber-500/10 transition-all text-left"
+                        >
+                          <ShieldAlert className="w-4 h-4 text-amber-300 shrink-0" />
+                          <span>Admin Console</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="border-t border-white/10 my-1.5" />
 
                     <button
                       onClick={() => {
                         setShowUserMenu(false);
                         onRequestLogout();
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-rose-400 hover:bg-rose-500/10 transition-all"
+                      className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-all text-left"
                     >
-                      <LogOut className="w-4 h-4 text-rose-400" />
+                      <LogOut className="w-4 h-4 text-rose-400 shrink-0" />
                       <span>Log Out</span>
                     </button>
                   </div>
