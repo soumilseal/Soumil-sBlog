@@ -61,31 +61,27 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNav
 
   const q = query.toLowerCase().trim();
 
-  // Intelligent alphabetical people search:
+  // Full-name people search:
   // 1. Single-letter queries (length === 1):
-  //    ONLY match full names beginning with that letter OR usernames beginning with that letter.
-  //    (e.g., 'S' -> 'Soumil Seal' shows, but 'Joydeb Seal' does NOT show).
+  //    ONLY match full names beginning with that letter (e.g. 'S' -> 'Soumil Seal', but not 'Joydeb Seal').
   // 2. Multi-letter queries (length >= 2):
-  //    Prefix matching against individual name tokens (first name, last name) or username.
+  //    Prefix matching against individual name tokens (first name, last name).
   //    (e.g., 'Sou' -> 'Soumil Seal', 'Seal' -> 'Soumil Seal', 'Alex' -> 'Alex Johnson').
-  // 3. Biographies are never searched.
+  // 3. Usernames, emails, and biographies are strictly NOT searched or exposed.
   const doesUserMatchQuery = (u: UserProfile, searchStr: string): boolean => {
     if (!searchStr) return false;
-    const cleanSearch = searchStr.startsWith('@') ? searchStr.slice(1) : searchStr;
+    const cleanSearch = searchStr.startsWith('@') ? searchStr.slice(1).trim() : searchStr.trim();
     if (!cleanSearch) return false;
 
     const fullNameLower = (u.fullName || '').toLowerCase().trim();
-    const usernameLower = (u.username || '').toLowerCase().trim();
+    if (!fullNameLower) return false;
 
     if (cleanSearch.length === 1) {
-      // Single-letter search: strictly beginning of Full Name OR beginning of Username
-      return fullNameLower.startsWith(cleanSearch) || usernameLower.startsWith(cleanSearch);
+      // Single-letter search: strictly beginning of Full Name
+      return fullNameLower.startsWith(cleanSearch);
     }
 
     // Multi-letter search (>= 2 characters):
-    // Check username prefix
-    if (usernameLower.startsWith(cleanSearch)) return true;
-
     // Check full name prefix
     if (fullNameLower.startsWith(cleanSearch)) return true;
 
@@ -145,10 +141,10 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNav
             autoFocus
             placeholder={
               filter === 'people'
-                ? 'Search people by first name, last name, or @username...'
+                ? 'Search people by first name or last name...'
                 : filter === 'stories'
                 ? 'Search stories by title, excerpt, content, category, or tags...'
-                : 'Search stories, authors, categories, or keywords...'
+                : 'Search stories, people, categories, or keywords...'
             }
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -207,16 +203,16 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNav
           {!q ? (
             <div className="py-12 text-center text-slate-500 text-xs font-mono-code">
               {filter === 'people'
-                ? 'Type a name or username (e.g., Soumil, Alex, @user) to find writers...'
+                ? 'Type a first or last name (e.g. Soumil, Alex) to find people...'
                 : filter === 'stories'
                 ? 'Type to search stories by title, content, category, or tags...'
-                : 'Type to search stories by title, author name, username, tags or category...'}
+                : 'Type to search stories by title, author name, tags or category...'}
             </div>
           ) : filter === 'people' && matchedUsers.length === 0 ? (
             <div className="py-12 text-center text-slate-400 text-sm glass-panel rounded-2xl border border-white/5 p-8 max-w-md mx-auto">
               <Users className="w-8 h-8 text-cyan-400/50 mx-auto mb-2" />
               <p className="font-semibold text-white mb-1">No matching people found.</p>
-              <p className="text-xs text-slate-500 font-mono-code">No authors or usernames start with "{query}".</p>
+              <p className="text-xs text-slate-500 font-mono-code">No authors match "{query}".</p>
             </div>
           ) : filter === 'stories' && matchedBlogs.length === 0 ? (
             <div className="py-12 text-center text-slate-400 text-sm glass-panel rounded-2xl border border-white/5 p-8 max-w-md mx-auto">
@@ -271,12 +267,9 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNav
                             className="w-9 h-9 rounded-full object-cover border border-white/10 group-hover:border-cyan-400 transition-colors shrink-0"
                           />
                           <div className="min-w-0 flex-1">
-                            <h4 className="text-xs font-bold text-white group-hover:text-cyan-300 truncate">
+                            <h4 className="text-xs sm:text-sm font-semibold text-white group-hover:text-cyan-300 truncate">
                               {u.fullName}
                             </h4>
-                            <span className="text-[10px] text-slate-400 font-mono-code truncate block">
-                              @{u.username}
-                            </span>
                           </div>
 
                           <div className="flex items-center gap-1 shrink-0">
