@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   User as UserIcon,
   Calendar,
@@ -16,6 +16,7 @@ import {
   UserPlus,
   UserCheck,
   Sparkles,
+  AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Blog, PageRoute, UserProfile } from '../../types';
@@ -65,6 +66,31 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Edit section ref for smooth automatic scroll
+  const editSectionRef = useRef<HTMLDivElement>(null);
+  const [shouldScrollToSettings, setShouldScrollToSettings] = useState(initialTab === 'settings');
+
+  // Auto-scroll to Edit Account Profile section when settings tab is activated via Edit Profile
+  useEffect(() => {
+    if (activeTab === 'settings' && shouldScrollToSettings) {
+      // Allow the tab content to mount and render in DOM
+      const timer = setTimeout(() => {
+        if (editSectionRef.current) {
+          // Calculate target position accounting for fixed navbar height (~80px)
+          const rect = editSectionRef.current.getBoundingClientRect();
+          const targetY = window.pageYOffset + rect.top - 90;
+          window.scrollTo({
+            top: Math.max(0, targetY),
+            behavior: 'smooth',
+          });
+          setShouldScrollToSettings(false);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, shouldScrollToSettings]);
 
   // Deletion modal state
   const [blogToDelete, setBlogToDelete] = useState<{ id: string; title: string } | null>(null);
@@ -137,6 +163,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     e.preventDefault();
     if (!user || !isOwner) return;
     setSavingProfile(true);
+    setSaveError(null);
+    setSaveSuccess(false);
 
     try {
       let finalPhoto = editPhotoURL;
@@ -174,9 +202,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           : null
       );
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2500);
-    } catch (err) {
-      console.error(err);
+
+      // Automatically return to main feed dashboard after 1.2 seconds
+      setTimeout(() => {
+        onNavigate({ type: 'dashboard' });
+      }, 1200);
+    } catch (err: unknown) {
+      console.error('Failed to save profile:', err);
+      const msg = err instanceof Error ? err.message : 'Failed to update profile. Please check your connection and try again.';
+      setSaveError(msg);
     } finally {
       setSavingProfile(false);
     }
@@ -272,7 +306,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 {isOwner ? (
                   <>
                     <button
-                      onClick={() => setActiveTab('settings')}
+                      onClick={() => {
+                        setActiveTab('settings');
+                        setShouldScrollToSettings(true);
+                      }}
                       className="px-4 py-2 rounded-xl glass-panel text-xs font-semibold text-slate-200 hover:text-white flex items-center gap-2"
                     >
                       <Edit3 className="w-4 h-4 text-cyan-400" />
@@ -399,7 +436,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               </button>
 
               <button
-                onClick={() => setActiveTab('settings')}
+                onClick={() => {
+                  setActiveTab('settings');
+                  setShouldScrollToSettings(true);
+                }}
                 className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
                   activeTab === 'settings'
                     ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/30'
@@ -545,7 +585,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
         {/* Tab Content: Settings / Edit Profile (Owner only) */}
         {activeTab === 'settings' && isOwner && (
-          <div className="max-w-2xl mx-auto glass-panel p-6 sm:p-8 rounded-3xl border border-white/10">
+          <div
+            ref={editSectionRef}
+            className="max-w-2xl mx-auto glass-panel p-6 sm:p-8 rounded-3xl border border-white/10"
+          >
             <h3 className="font-editorial text-2xl font-bold text-white mb-2">Edit Account Profile</h3>
             <p className="text-xs text-slate-400 mb-6">
               Update your public persona, avatar, and background banner.
@@ -553,8 +596,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
             {saveSuccess && (
               <div className="mb-4 p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2">
-                <Check className="w-4 h-4" />
-                <span>Profile saved successfully!</span>
+                <Check className="w-4 h-4 shrink-0" />
+                <span>Profile updated successfully!</span>
+              </div>
+            )}
+
+            {saveError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{saveError}</span>
               </div>
             )}
 
